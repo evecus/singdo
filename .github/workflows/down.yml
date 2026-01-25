@@ -1,0 +1,34 @@
+name: Sync Sing-box Binary
+
+on:
+  workflow_dispatch: # 允许手动点击运行
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get Latest Release Tag
+        id: get_tag
+        run: |
+          TAG=$(curl -s https://api.github.com/repos/SagerNet/sing-box/releases/latest | jq -r .tag_name)
+          echo "TAG=$TAG" >> $GITHUB_ENV
+          # 去掉 v 前缀用于下载链接
+          echo "VERSION=${TAG#v}" >> $GITHUB_ENV
+
+      - name: Download and Extract
+        run: |
+          # 下载官方压缩包
+          curl -L -o sing-box.tar.gz "https://github.com/SagerNet/sing-box/releases/download/${{ env.TAG }}/sing-box-${{ env.VERSION }}-linux-amd64.tar.gz"
+          # 解压
+          tar -xzf sing-box.tar.gz
+          # 移动二进制文件并改名，方便下载
+          mv sing-box-${{ env.VERSION }}-linux-amd64/sing-box ./sing-box-linux-amd64
+          chmod +x ./sing-box-linux-amd64
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.TAG }}
+          files: ./sing-box-linux-amd64
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
