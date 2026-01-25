@@ -65,7 +65,7 @@ EOF
 
 # 4. 生成节点链接
 # VLESS (直连)
-VLESS_LINK="vless://${LUUID}@${IP}:${VLESS_PORT}?encryption=none&security=tls&sni=${DOMAIN}&allowInsecure=1#VLESS_Direct"
+VLESS_LINK="vless://${LUUID}@${IP}:${VLESS_PORT}?encryption=none&security=tls&sni=www.bing.com&allowInsecure=1#VLESS_Direct"
 
 # VMess (Argo)
 VMESS_JSON=$(cat <<EOF
