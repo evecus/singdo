@@ -6,6 +6,6 @@ docker run -d \
   -e LUUID="你的VLESS-UUID" \
   -e MUUID="你的VMess-UUID" \
   -e DOMAIN="你的域名" \
-  -e TOKEN="Argo隧道Token" \
+  -e TOKEN="Argo隧道Token" \   #vmess-port=8001
   -e PASSWORD="Hy2密码" \
   ghcr.io/evecus/singdo:latest
