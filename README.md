@@ -11,4 +11,4 @@ docker run -d \
   ghcr.io/evecus/singdo:latest
 
 
-bash <(curl -Ls https://raw.githubusercontent.com/evecus/singdo/refs/heads/main/sing-vps.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/evecus/singdo/refs/heads/main/install.sh)
