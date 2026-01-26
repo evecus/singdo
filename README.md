@@ -9,3 +9,6 @@ docker run -d \
   -e TOKEN="Argo隧道Token" \   #vmess-port=8001
   -e PASSWORD="Hy2密码" \
   ghcr.io/evecus/singdo:latest
+
+
+bash <(curl -Ls https://raw.githubusercontent.com/evecus/singdo/refs/heads/main/sing-vps.sh)
