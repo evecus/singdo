@@ -70,10 +70,7 @@ fi
 # 5. 生成 config.json 到 /opt/sing-box/
 cat <<EOF > /opt/sing-box/config.json
 {
-  "log": {
-    "level": "info",
-    "timestamp": true
-  },
+  "log": { "disabled": true, "level": "panic" },
   "inbounds": [
     {
       "type": "vless",
