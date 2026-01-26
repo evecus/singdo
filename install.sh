@@ -111,10 +111,6 @@ EOF
 
     systemctl daemon-reload && systemctl enable --now sing-box
 
-    # 防火墙处理
-    [[ -x "$(command -v ufw)" ]] && { ufw allow $VLESS_PORT/tcp; ufw allow $HY2_PORT/udp; }
-    [[ -x "$(command -v nft)" ]] && { nft add rule inet filter input tcp dport $VLESS_PORT accept; nft add rule inet filter input udp dport $HY2_PORT accept; }
-    [[ -x "$(command -v iptables)" ]] && { iptables -I INPUT -p tcp --dport $VLESS_PORT -j ACCEPT; iptables -I INPUT -p udp --dport $HY2_PORT -j ACCEPT; }
 
     # 保存节点信息
     IP=$(curl -s ifconfig.me)
@@ -163,7 +159,7 @@ case $1 in
                 systemctl stop sing-box
                 rm -rf /opt/sing-box /etc/systemd/system/sing-box.service
                 # 重新调用主脚本的安装逻辑 (这里建议将主脚本下载到本地)
-                bash <(curl -Ls https://your-script-url-here.sh) # 或者是脚本自身的重入逻辑
+                bash <(curl -Ls https://raw.githubusercontent.com/evecus/singdo/refs/heads/main/install.sh) # 或者是脚本自身的重入逻辑
                 ;;
             3)
                 OLD_V=$(/usr/local/bin/sing-box version | head -n1 | awk '{print $3}')
