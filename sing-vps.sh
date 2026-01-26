@@ -135,18 +135,32 @@ systemctl daemon-reload
 systemctl enable sing-box
 systemctl restart sing-box
 
-# 7. 输出结果
+# 7. 生成链接并写入文件
 IP=$(curl -s ifconfig.me)
 WS_PATH_ENC=$(echo $WS_PATH | sed 's/\//%2F/g')
 
+VLESS_LINK="vless://$VLESS_UUID@www.visa.com:443?encryption=none&security=tls&sni=$VLESS_SNI&type=ws&host=$VLESS_SNI&path=$WS_PATH_ENC#VLESS_CDN"
+HY2_LINK="hy2://$HY2_PASS@$IP:$HY2_PORT?sni=$HY2_SNI&insecure=1#HY2_Node"
+
+# 导入到指定文件
+cat <<EOF > /opt/sing-box/sing.txt
+VLESS 节点链接:
+$VLESS_LINK
+
+Hysteria2 节点链接:
+$HY2_LINK
+EOF
+
+# 8. 输出结果到屏幕
 echo ""
 echo "=================================================="
 echo "singbox 正在运行"
 echo "配置文件: /opt/sing-box/config.json"
+echo "节点保存: /opt/sing-box/sing.txt"
 echo "=================================================="
 echo "节点 1 (VLESS+WS+TLS):"
-echo "链接: vless://$VLESS_UUID@www.visa.com:443?encryption=none&security=tls&sni=$VLESS_SNI&type=ws&host=$VLESS_SNI&path=$WS_PATH_ENC#VLESS_CDN"
+echo "$VLESS_LINK"
 echo "--------------------------------------------------"
 echo "节点 2 (Hysteria2):"
-echo "链接: hy2://$HY2_PASS@$IP:$HY2_PORT?sni=$HY2_SNI&insecure=1#HY2_Node"
+echo "$HY2_LINK"
 echo "=================================================="
