@@ -1,0 +1,1 @@
+bash <(curl -Ls https://raw.githubusercontent.com/evecus/singdo/refs/heads/main/sing-vps.sh)
