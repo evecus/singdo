@@ -21,13 +21,12 @@ esac
 DOWNLOAD_URL="https://github.com/SagerNet/sing-box/releases/download/v${LATEST_VERSION}/sing-box-${LATEST_VERSION}-linux-${ARCH}.tar.gz"
 wget -O sing-box.tar.gz "$DOWNLOAD_URL"
 tar -zxvf sing-box.tar.gz
-cp sing-box-*/sing-box /usr/bin/
-chmod +x /usr/bin/sing-box
+cp sing-box-*/sing-box /usr/local/bin/
+chmod +x /usr/local/bin/sing-box
 rm -rf sing-box*
 
 # 创建工作目录和配置目录
 mkdir -p /opt/sing-box
-mkdir -p /etc/sing-box
 cd /opt/sing-box
 
 # 3. 部署 VLESS 节点
@@ -62,14 +61,14 @@ if [[ "$GEN_CERT" == "n" ]]; then
     read -p "请输入证书私钥 (KEY) 绝对路径: " HY2_KEY
 else
     HY2_SNI="www.bing.com"
-    HY2_CERT="/etc/sing-box/hy2_cert.pem"
-    HY2_KEY="/etc/sing-box/hy2_key.pem"
+    HY2_CERT="/opt/sing-box/hy2_cert.pem"
+    HY2_KEY="/opt/sing-box/hy2_key.pem"
     openssl req -x509 -nodes -newkey rsa:2048 -keyout "$HY2_KEY" -out "$HY2_CERT" -subj "/CN=$HY2_SNI" -days 3650
     echo "已生成自签名证书 (SNI: $HY2_SNI)"
 fi
 
-# 5. 生成 config.json 到 /etc/sing-box/
-cat <<EOF > /etc/sing-box/config.json
+# 5. 生成 config.json 到 /opt/sing-box/
+cat <<EOF > /opt/sing-box/config.json
 {
   "log": {
     "level": "info",
@@ -123,7 +122,7 @@ After=network.target nss-lookup.target
 [Service]
 CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW
 AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW
-ExecStart=/usr/bin/sing-box run -c /etc/sing-box/config.json
+ExecStart=/usr/local/bin/sing-box run -c /opt/sing-box/config.json
 Restart=on-failure
 RestartSec=10s
 LimitNOFILE=infinity
@@ -143,8 +142,7 @@ WS_PATH_ENC=$(echo $WS_PATH | sed 's/\//%2F/g')
 echo ""
 echo "=================================================="
 echo "singbox 正在运行"
-echo "工作目录: /opt/sing-box"
-echo "配置文件: /etc/sing-box/config.json"
+echo "配置文件: /opt/sing-box/config.json"
 echo "=================================================="
 echo "节点 1 (VLESS+WS+TLS):"
 echo "链接: vless://$VLESS_UUID@www.visa.com:443?encryption=none&security=tls&sni=$VLESS_SNI&type=ws&host=$VLESS_SNI&path=$WS_PATH_ENC#VLESS_CDN"
