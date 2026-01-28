@@ -1,4 +1,4 @@
-name: Sync Sing-box Binary
+name: 下载Sing-box
 
 on:
   workflow_dispatch: # 允许手动点击运行
