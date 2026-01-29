@@ -114,7 +114,7 @@ EOF
 
     # 保存节点信息
     IP=$(curl -s ifconfig.me)
-    V_LINK="vless://$VLESS_UUID@$IP:$VLESS_PORT?encryption=none&security=tls&sni=$VLESS_SNI&type=ws&host=$VLESS_SNI&path=$(echo $WS_PATH | sed 's/\//%2F/g')#VLESS_Node"
+    V_LINK="vless://$VLESS_UUID@104.16.200.250:443?encryption=none&security=tls&sni=$VLESS_SNI&type=ws&host=$VLESS_SNI&path=$(echo $WS_PATH | sed 's/\//%2F/g')#VLESS_Node"
     H_LINK="hy2://$HY2_PASS@$IP:$HY2_PORT?sni=$HY2_SNI&insecure=1#HY2_Node"
 
     cat <<EOF > $NODE_FILE
