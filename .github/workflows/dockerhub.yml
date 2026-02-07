@@ -1,55 +1,99 @@
-name: 构建并推送 Docker Hub 镜像
+name: 自动检测更新并构建镜像
 
 on:
   workflow_dispatch: # 支持手动触发
+  schedule:
+    - cron: '0 0 */6 * *'
 
 jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      needs_update: ${{ steps.compare.outputs.update }}
+    steps:
+      - name: Get Latest Versions
+        id: get_version
+        run: |
+          # 获取 sing-box 最新版本 (去掉 v)
+          SB_VER=$(curl -s https://api.github.com/repos/SagerNet/sing-box/releases/latest | jq -r '.tag_name' | sed 's/^v//')
+          # 获取 cloudflared 最新版本
+          CF_VER=$(curl -s https://api.github.com/repos/cloudflare/cloudflared/releases/latest | jq -r '.tag_name')
+          
+          echo "sb_ver=$SB_VER" >> $GITHUB_OUTPUT
+          echo "cf_ver=$CF_VER" >> $GITHUB_OUTPUT
+          echo "当前最新: sing-box $SB_VER, cloudflared $CF_VER"
+
+      - name: Restore Last Versions
+        id: restore_cache
+        uses: actions/cache/restore@v4
+        with:
+          path: version_record.txt
+          key: version-cache-${{ runner.os }}
+
+      - name: Compare Versions
+        id: compare
+        run: |
+          NEW_VER="sb_${{ steps.get_version.outputs.sb_ver }}_cf_${{ steps.get_version.outputs.cf_ver }}"
+          OLD_VER=""
+          if [ -f version_record.txt ]; then
+            OLD_VER=$(cat version_record.txt)
+          fi
+
+          if [ "$NEW_VER" != "$OLD_VER" ]; then
+            echo "检测到版本更新: $OLD_VER -> $NEW_VER"
+            echo "$NEW_VER" > version_record.txt
+            echo "update=true" >> $GITHUB_OUTPUT
+          else
+            echo "版本未变化，跳过构建。"
+            echo "update=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Save New Version to Cache
+        if: steps.compare.outputs.update == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: version_record.txt
+          key: version-cache-${{ runner.os }}-${{ github.run_id }} # 强制更新缓存
+
   build-and-push:
+    needs: check-version
+    if: needs.check-version.outputs.needs_update == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 设置 QEMU 以支持 ARM64 模拟构建 (多架构支持)
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      # 设置 Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 登录到 Docker Hub
-      # 需要在 GitHub Secrets 中设置 DOCKERHUB_USERNAME 和 DOCKERHUB_TOKEN
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 自动提取标签和镜像名
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          # 自动组合：用户名/仓库名 (并将仓库名转为小写)
           images: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}
           tags: |
-            type=semver,pattern={{version}}
-            type=ref,event=branch
+            type=raw,value=latest
             type=sha
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            # 也可以把版本号作为 tag
+            type=raw,value=${{ needs.check-version.outputs.sb_ver }}
 
-      # 执行多架构构建并推送
       - name: Build and Push
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          # 构建 amd64 (普通电脑) 和 arm64 (M1/M2 Mac 或 树莓派) 架构
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # 使用 GitHub Actions 缓存，显著提升二次构建速度
           cache-from: type=gha
           cache-to: type=gha,mode=max
