@@ -1,0 +1,182 @@
+name: Build singpanel
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. v1.0.0)'
+        required: false
+        default: 'dev'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build binaries
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] && [ -n "${{ github.ref_name }}" ]; then
+            echo "version=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          elif [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=dev-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Inject version
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          sed -i "s/version = \"1.0.0\"/version = \"${VERSION#v}\"/" main.go
+
+      - name: Build linux/amd64
+        env:
+          GOOS: linux
+          GOARCH: amd64
+          CGO_ENABLED: 0
+        run: |
+          go build -trimpath -ldflags="-s -w" -o dist/sing-amd64 .
+
+      - name: Build linux/arm64
+        env:
+          GOOS: linux
+          GOARCH: arm64
+          CGO_ENABLED: 0
+        run: |
+          go build -trimpath -ldflags="-s -w" -o dist/sing-arm64 .
+
+      - name: Build linux/386
+        env:
+          GOOS: linux
+          GOARCH: "386"
+          CGO_ENABLED: 0
+        run: |
+          go build -trimpath -ldflags="-s -w" -o dist/sing-386 .
+
+      - name: Build linux/armv7
+        env:
+          GOOS: linux
+          GOARCH: arm
+          GOARM: "7"
+          CGO_ENABLED: 0
+        run: |
+          go build -trimpath -ldflags="-s -w" -o dist/sing-armv7 .
+
+      - name: Verify binaries
+        run: |
+          ls -lh dist/
+          file dist/*
+
+      - name: Write install script
+        run: |
+          cat > dist/install.sh << 'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          INSTALL_BIN="/usr/local/bin/sing"
+          DATA_DIR="/var/lib/singpanel"
+          PORT=9009
+          ARCH=$(uname -m)
+          case "$ARCH" in
+            x86_64)  BIN="sing-amd64" ;;
+            aarch64) BIN="sing-arm64" ;;
+            armv7l)  BIN="sing-armv7" ;;
+            i686)    BIN="sing-386"   ;;
+            *)       echo "Unsupported arch: $ARCH"; exit 1 ;;
+          esac
+          SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+          echo "Installing $BIN -> $INSTALL_BIN"
+          install -m 755 "$SCRIPT_DIR/$BIN" "$INSTALL_BIN"
+          mkdir -p "$DATA_DIR" /opt/sing-box
+          cat > /etc/systemd/system/singpanel.service << UNIT
+          [Unit]
+          Description=sing-box Web Panel
+          After=network.target
+          [Service]
+          ExecStart=$INSTALL_BIN -port $PORT -data $DATA_DIR
+          Restart=on-failure
+          RestartSec=5s
+          [Install]
+          WantedBy=multi-user.target
+          UNIT
+          systemctl daemon-reload
+          systemctl enable --now singpanel
+          IP=$(curl -s --max-time 5 https://api.ipify.org 2>/dev/null || echo "YOUR_IP")
+          echo ""
+          echo "✅  安装完成！"
+          echo "   地址: http://${IP}:${PORT}"
+          echo "   账号: admin / admin"
+          EOF
+          chmod +x dist/install.sh
+
+      - name: Create release archives
+        run: |
+          cd dist
+          VERSION="${{ steps.version.outputs.version }}"
+          # Per-arch tarballs
+          for arch in amd64 arm64 armv7 386; do
+            tar czf "singpanel-${VERSION}-linux-${arch}.tar.gz" "sing-${arch}" install.sh
+          done
+          # All-in-one zip
+          zip "singpanel-${VERSION}-all.zip" sing-* install.sh
+          ls -lh *.tar.gz *.zip
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: singpanel-${{ steps.version.outputs.version }}
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+          retention-days: 30
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "sing-box Panel ${{ steps.version.outputs.version }}"
+          body: |
+            ## sing-box 管理面板 ${{ steps.version.outputs.version }}
+
+            ### 下载
+
+            | 平台 | 文件 |
+            |------|------|
+            | Linux x86_64 | `singpanel-${{ steps.version.outputs.version }}-linux-amd64.tar.gz` |
+            | Linux ARM64  | `singpanel-${{ steps.version.outputs.version }}-linux-arm64.tar.gz` |
+            | Linux ARMv7  | `singpanel-${{ steps.version.outputs.version }}-linux-armv7.tar.gz` |
+            | Linux 32-bit | `singpanel-${{ steps.version.outputs.version }}-linux-386.tar.gz` |
+            | 全平台合包  | `singpanel-${{ steps.version.outputs.version }}-all.zip` |
+
+            ### 快速安装
+            ```bash
+            tar xzf singpanel-*-linux-amd64.tar.gz
+            sudo bash install.sh
+            # 访问 http://YOUR_IP:9009  账号密码默认 admin/admin
+            ```
+
+            ### 手动运行
+            ```bash
+            chmod +x sing-amd64
+            ./sing-amd64 -port 9009 -data ./data
+            ```
+          files: |
+            dist/*.tar.gz
+            dist/*.zip
+          draft: false
+          prerelease: false
