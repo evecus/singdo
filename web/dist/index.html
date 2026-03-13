@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>sing-box 管理面板</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface2: #1c2128;
+  --border: #30363d;
+  --accent: #58a6ff;
+  --accent2: #3fb950;
+  --warn: #f85149;
+  --warn2: #e3b341;
+  --text: #e6edf3;
+  --text2: #8b949e;
+  --text3: #6e7681;
+  --radius: 8px;
+  --radius2: 12px;
+  --font: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --shadow: 0 4px 24px rgba(0,0,0,.4);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6}
+a{color:var(--accent);text-decoration:none}
+
+/* Layout */
+#app{display:flex;height:100vh;overflow:hidden}
+#sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;transition:.2s}
+#main{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+#topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+
+/* Sidebar */
+.sidebar-logo{padding:20px 16px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+.sidebar-logo .logo-icon{width:32px;height:32px;background:linear-gradient(135deg,#58a6ff,#3fb950);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:bold;color:#fff}
+.sidebar-logo .logo-text{font-weight:700;font-size:15px;color:var(--text)}
+.sidebar-logo .logo-sub{font-size:11px;color:var(--text2)}
+nav{flex:1;padding:8px 0;overflow-y:auto}
+.nav-section{padding:4px 12px 2px;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-top:8px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 16px;cursor:pointer;border-radius:6px;margin:1px 8px;color:var(--text2);transition:.15s;font-size:13px;user-select:none}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:rgba(88,166,255,.12);color:var(--accent);font-weight:600}
+.nav-item .nav-icon{width:18px;text-align:center;font-size:15px;flex-shrink:0}
+.sidebar-bottom{padding:12px;border-top:1px solid var(--border)}
+.user-info{display:flex;align-items:center;gap:10px;padding:8px;background:var(--surface2);border-radius:8px}
+.avatar{width:30px;height:30px;background:linear-gradient(135deg,#58a6ff44,#3fb95044);border:1px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600}
+.user-name{font-size:12px;font-weight:600;color:var(--text)}
+.logout-btn{margin-left:auto;cursor:pointer;color:var(--text3);font-size:16px;transition:.15s}
+.logout-btn:hover{color:var(--warn)}
+
+/* Content */
+#content{padding:24px;flex:1}
+.page{display:none;animation:fadeIn .2s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);padding:20px;margin-bottom:16px}
+.card-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+
+/* Stat card */
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);padding:20px;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.stat-card.blue::before{background:linear-gradient(90deg,#58a6ff,#79c0ff)}
+.stat-card.green::before{background:linear-gradient(90deg,#3fb950,#7ee787)}
+.stat-card.yellow::before{background:linear-gradient(90deg,#e3b341,#f0c66a)}
+.stat-card.red::before{background:linear-gradient(90deg,#f85149,#ff7b72)}
+.stat-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.stat-value{font-size:28px;font-weight:700;color:var(--text);margin:6px 0 4px;font-family:var(--font)}
+.stat-sub{font-size:12px;color:var(--text2)}
+.stat-icon{position:absolute;right:16px;top:16px;font-size:28px;opacity:.15}
+
+/* Status badge */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.badge.running{background:rgba(63,185,80,.12);color:var(--accent2);border:1px solid rgba(63,185,80,.2)}
+.badge.stopped{background:rgba(248,81,73,.1);color:var(--warn);border:1px solid rgba(248,81,73,.2)}
+.badge.enabled{background:rgba(88,166,255,.1);color:var(--accent);border:1px solid rgba(88,166,255,.2)}
+.badge.disabled{background:rgba(139,148,158,.1);color:var(--text2);border:1px solid var(--border)}
+.dot{width:6px;height:6px;border-radius:50%;display:inline-block}
+.dot.green{background:var(--accent2)}
+.dot.red{background:var(--warn)}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:13px;font-weight:500;transition:.15s;line-height:1;white-space:nowrap}
+.btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(88,166,255,.06)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#000;font-weight:600}
+.btn.primary:hover{background:#79c0ff;border-color:#79c0ff}
+.btn.danger{background:rgba(248,81,73,.1);border-color:var(--warn);color:var(--warn)}
+.btn.danger:hover{background:var(--warn);color:#fff}
+.btn.success{background:rgba(63,185,80,.1);border-color:var(--accent2);color:var(--accent2)}
+.btn.success:hover{background:var(--accent2);color:#000}
+.btn.sm{padding:4px 10px;font-size:12px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-group{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Table */
+.table-wrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead{background:var(--surface2)}
+th{padding:10px 14px;text-align:left;font-weight:600;color:var(--text2);font-size:11px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+.type-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;font-family:var(--font);text-transform:uppercase}
+.type-vless{background:rgba(88,166,255,.12);color:#58a6ff}
+.type-vmess{background:rgba(63,185,80,.12);color:#3fb950}
+.type-trojan{background:rgba(227,179,65,.12);color:#e3b341}
+.type-shadowsocks{background:rgba(188,140,228,.12);color:#bc8ce4}
+.type-hysteria2{background:rgba(248,81,73,.12);color:#f85149}
+.type-tuic{background:rgba(121,192,255,.12);color:#79c0ff}
+
+/* Forms */
+.form-grid{display:grid;gap:14px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.form-group{display:flex;flex-direction:column;gap:5px}
+label{font-size:12px;font-weight:600;color:var(--text2)}
+input,select,textarea{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:8px 12px;font-size:13px;font-family:inherit;transition:.15s;width:100%;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(88,166,255,.1)}
+input.code,textarea.code{font-family:var(--font);font-size:12px}
+textarea{resize:vertical;min-height:80px}
+.input-group{display:flex;gap:0}
+.input-group input{border-radius:var(--radius) 0 0 var(--radius)}
+.input-group .btn{border-radius:0 var(--radius) var(--radius) 0;border-left:0;flex-shrink:0}
+.form-hint{font-size:11px;color:var(--text3)}
+select option{background:var(--surface)}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);width:100%;max-width:640px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow)}
+.modal-lg{max-width:800px}
+.modal-header{padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface);z-index:1}
+.modal-title{font-size:16px;font-weight:700}
+.modal-close{background:none;border:none;color:var(--text2);cursor:pointer;font-size:20px;line-height:1;padding:2px;transition:.15s}
+.modal-close:hover{color:var(--warn)}
+.modal-body{padding:24px}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;background:var(--surface);position:sticky;bottom:0}
+
+/* Alert/toast */
+#toast-container{position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;font-size:13px;box-shadow:var(--shadow);animation:slideIn .2s ease;display:flex;align-items:center;gap:10px;max-width:320px}
+.toast.success{border-color:var(--accent2)}
+.toast.error{border-color:var(--warn)}
+.toast.info{border-color:var(--accent)}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}
+
+/* Login page */
+#login-page{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:200}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);padding:40px;width:360px;box-shadow:var(--shadow)}
+.login-logo{text-align:center;margin-bottom:28px}
+.login-logo .icon{width:56px;height:56px;background:linear-gradient(135deg,#58a6ff,#3fb950);border-radius:14px;display:inline-flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:12px}
+.login-logo h1{font-size:20px;font-weight:700;margin-bottom:4px}
+.login-logo p{color:var(--text2);font-size:13px}
+.login-form .form-group{margin-bottom:16px}
+.login-submit{width:100%;padding:10px;margin-top:8px;font-size:14px;font-weight:600}
+
+/* Code block */
+pre{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-family:var(--font);font-size:12px;overflow:auto;color:var(--text2);max-height:400px}
+.copy-btn{float:right;margin-left:8px}
+
+/* Progress */
+.progress-bar{background:var(--border);border-radius:4px;height:6px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:.3s;border-radius:4px}
+
+/* Tabs */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px}
+.tab{padding:8px 18px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text2);border-bottom:2px solid transparent;transition:.15s;margin-bottom:-1px}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+.tab-content{display:none}
+.tab-content.active{display:block}
+
+/* Page header */
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.page-title{font-size:20px;font-weight:700;display:flex;align-items:center;gap:8px}
+.page-title span{font-size:22px}
+
+/* Log viewer */
+.log-viewer{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-family:var(--font);font-size:11px;max-height:400px;overflow-y:auto;color:var(--text2);white-space:pre-wrap;word-break:break-all}
+
+/* Misc */
+.empty-state{text-align:center;padding:60px 20px;color:var(--text2)}
+.empty-state .icon{font-size:48px;margin-bottom:12px;opacity:.3}
+.empty-state h3{font-size:16px;font-weight:600;margin-bottom:6px;color:var(--text)}
+.divider{height:1px;background:var(--border);margin:16px 0}
+.section-title{font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+.link-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;font-family:var(--font);font-size:12px;word-break:break-all;color:var(--text2);margin-bottom:8px;position:relative}
+.link-box .copy-btn{position:absolute;right:6px;top:6px}
+.tag{display:inline-block;padding:1px 7px;border-radius:3px;font-size:11px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:var(--font)}
+.tls-section{background:rgba(88,166,255,.04);border:1px solid rgba(88,166,255,.15);border-radius:var(--radius);padding:14px;margin-top:8px}
+.reality-section{background:rgba(63,185,80,.04);border:1px solid rgba(63,185,80,.15);border-radius:var(--radius);padding:14px;margin-top:8px}
+.collapsible-header{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none}
+.collapsible-header .chevron{transition:.2s;font-size:12px}
+.collapsible-header.open .chevron{transform:rotate(180deg)}
+.collapsible-body{margin-top:12px}
+.hidden{display:none!important}
+@media(max-width:768px){#sidebar{display:none}.grid4{grid-template-columns:1fr 1fr}.form-row{grid-template-columns:1fr}.grid2{grid-template-columns:1fr}.grid3{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div id="toast-container"></div>
+
+<!-- Login Page -->
+<div id="login-page">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="icon">⬡</div>
+      <h1>sing-box 面板</h1>
+      <p>请登录以继续</p>
+    </div>
+    <div class="login-form">
+      <div class="form-group">
+        <label>用户名</label>
+        <input type="text" id="login-user" value="admin" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label>密码</label>
+        <input type="password" id="login-pass" value="admin" autocomplete="current-password">
+      </div>
+      <button class="btn primary login-submit" onclick="doLogin()">登 录</button>
+    </div>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="app">
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">⬡</div>
+      <div>
+        <div class="logo-text">sing-box</div>
+        <div class="logo-sub">管理面板</div>
+      </div>
+    </div>
+    <nav>
+      <div class="nav-section">概览</div>
+      <div class="nav-item active" onclick="showPage('dashboard')">
+        <span class="nav-icon">⬡</span> 仪表盘
+      </div>
+      <div class="nav-section">节点管理</div>
+      <div class="nav-item" onclick="showPage('inbounds')">
+        <span class="nav-icon">⇄</span> 节点列表
+      </div>
+      <div class="nav-item" onclick="showPage('subscribe')">
+        <span class="nav-icon">⊕</span> 订阅导出
+      </div>
+      <div class="nav-section">系统</div>
+      <div class="nav-item" onclick="showPage('singbox')">
+        <span class="nav-icon">⚙</span> sing-box 管理
+      </div>
+      <div class="nav-item" onclick="showPage('backup')">
+        <span class="nav-icon">☁</span> 备份恢复
+      </div>
+      <div class="nav-item" onclick="showPage('settings')">
+        <span class="nav-icon">⊞</span> 设置
+      </div>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="user-info">
+        <div class="avatar" id="sidebar-avatar">A</div>
+        <div>
+          <div class="user-name" id="sidebar-username">admin</div>
+        </div>
+        <span class="logout-btn" onclick="doLogout()" title="退出登录">⏻</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div id="main">
+    <div id="topbar">
+      <div style="font-weight:600;font-size:14px" id="topbar-title">仪表盘</div>
+      <div id="topbar-actions"></div>
+    </div>
+    <div id="content">
+
+      <!-- Dashboard -->
+      <div class="page active" id="page-dashboard">
+        <div class="grid4" id="stat-cards" style="margin-bottom:16px">
+          <div class="stat-card blue">
+            <div class="stat-label">服务状态</div>
+            <div class="stat-value" id="stat-status">—</div>
+            <div class="stat-sub" id="stat-version">检测中...</div>
+            <div class="stat-icon">⚙</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-label">节点数量</div>
+            <div class="stat-value" id="stat-nodes">0</div>
+            <div class="stat-sub">已配置节点</div>
+            <div class="stat-icon">⇄</div>
+          </div>
+          <div class="stat-card yellow">
+            <div class="stat-label">开机自启</div>
+            <div class="stat-value" id="stat-boot">—</div>
+            <div class="stat-sub">systemd 状态</div>
+            <div class="stat-icon">⬡</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">sing-box</div>
+            <div class="stat-value" id="stat-installed">—</div>
+            <div class="stat-sub">安装状态</div>
+            <div class="stat-icon">↓</div>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="card">
+            <div class="card-title">⚡ 快速操作</div>
+            <div class="btn-group">
+              <button class="btn success sm" onclick="sysAction('start')">▶ 启动</button>
+              <button class="btn danger sm" onclick="sysAction('stop')">■ 停止</button>
+              <button class="btn sm" onclick="sysAction('restart')">↺ 重启</button>
+              <button class="btn sm" onclick="applyConfig()">✓ 应用配置</button>
+            </div>
+            <div class="divider"></div>
+            <div class="btn-group">
+              <button class="btn sm" onclick="sysAction('enable')">✓ 开机自启</button>
+              <button class="btn sm" onclick="sysAction('disable')">✗ 取消自启</button>
+              <button class="btn sm" onclick="sysAction('register')">⊕ 注册 Systemd</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">📋 节点类型分布</div>
+            <div id="type-chart">加载中...</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" style="justify-content:space-between">
+            📜 最近日志
+            <button class="btn sm" onclick="loadLogs()">刷新</button>
+          </div>
+          <div class="log-viewer" id="log-viewer">点击刷新加载日志...</div>
+        </div>
+      </div>
+
+      <!-- Inbounds -->
+      <div class="page" id="page-inbounds">
+        <div class="page-header">
+          <div class="page-title"><span>⇄</span> 节点列表</div>
+          <button class="btn primary" onclick="openAddModal()">＋ 添加节点</button>
+        </div>
+        <div class="card" style="padding:0">
+          <div class="table-wrap" id="inbound-table-wrap">
+            <div class="empty-state">
+              <div class="icon">⇄</div>
+              <h3>暂无节点</h3>
+              <p>点击"添加节点"开始配置</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Subscribe -->
+      <div class="page" id="page-subscribe">
+        <div class="page-title" style="margin-bottom:20px"><span>⊕</span> 订阅导出</div>
+        <div class="card">
+          <div class="card-title">🔗 节点分享链接</div>
+          <div id="links-list">加载中...</div>
+          <div class="divider"></div>
+          <div class="btn-group">
+            <button class="btn primary" onclick="downloadSubscribe()">⬇ 下载订阅文件</button>
+            <button class="btn" onclick="copyAllLinks()">⊕ 复制全部</button>
+            <button class="btn" onclick="downloadSingBoxConfig()">⬇ 导出 sing-box 配置</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">📋 sing-box config.json 预览</div>
+          <pre id="config-preview" style="max-height:500px">加载中...</pre>
+        </div>
+      </div>
+
+      <!-- sing-box Management -->
+      <div class="page" id="page-singbox">
+        <div class="page-title" style="margin-bottom:20px"><span>⚙</span> sing-box 管理</div>
+        <div class="card">
+          <div class="card-title">📦 安装状态</div>
+          <div id="sb-status-detail">加载中...</div>
+          <div class="divider"></div>
+          <div class="btn-group">
+            <button class="btn success" onclick="openDownloadModal()">⬇ 下载/更新 sing-box</button>
+            <button class="btn" onclick="sysAction('register')">⊕ 注册 Systemd 服务</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">⚡ 服务控制</div>
+          <div class="btn-group">
+            <button class="btn success" onclick="sysAction('start')">▶ 启动服务</button>
+            <button class="btn danger" onclick="sysAction('stop')">■ 停止服务</button>
+            <button class="btn" onclick="sysAction('restart')">↺ 重启服务</button>
+          </div>
+          <div class="divider"></div>
+          <div class="btn-group">
+            <button class="btn" onclick="sysAction('enable')">✓ 设置开机自启</button>
+            <button class="btn danger" onclick="sysAction('disable')">✗ 取消开机自启</button>
+          </div>
+          <div class="divider"></div>
+          <button class="btn primary" onclick="applyConfig()">✓ 写入配置并重启服务</button>
+        </div>
+        <div class="card">
+          <div class="card-title" style="justify-content:space-between">
+            📜 服务日志
+            <button class="btn sm" onclick="loadLogs()">刷新</button>
+          </div>
+          <div class="log-viewer" id="log-viewer2">点击刷新加载日志...</div>
+        </div>
+      </div>
+
+      <!-- Backup -->
+      <div class="page" id="page-backup">
+        <div class="page-title" style="margin-bottom:20px"><span>☁</span> 备份与恢复</div>
+        <div class="grid2">
+          <div class="card">
+            <div class="card-title">💾 备份配置</div>
+            <p style="color:var(--text2);font-size:13px;margin-bottom:16px">将当前所有节点配置导出为备份文件（ZIP格式）</p>
+            <button class="btn primary" onclick="doBackup()">⬇ 下载备份文件</button>
+          </div>
+          <div class="card">
+            <div class="card-title">📂 恢复配置</div>
+            <p style="color:var(--text2);font-size:13px;margin-bottom:16px">从备份文件恢复节点配置（支持ZIP或JSON）</p>
+            <input type="file" id="restore-file" accept=".zip,.json" style="display:none" onchange="doRestore(this)">
+            <button class="btn success" onclick="document.getElementById('restore-file').click()">⬆ 选择备份文件</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings -->
+      <div class="page" id="page-settings">
+        <div class="page-title" style="margin-bottom:20px"><span>⊞</span> 设置</div>
+        <div class="card" style="max-width:480px">
+          <div class="card-title">🔐 修改登录凭据</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>新用户名</label>
+              <input type="text" id="new-username" placeholder="用户名">
+            </div>
+            <div class="form-group">
+              <label>新密码</label>
+              <input type="password" id="new-password" placeholder="密码">
+            </div>
+            <div class="form-group">
+              <label>确认密码</label>
+              <input type="password" id="confirm-password" placeholder="再次输入密码">
+            </div>
+          </div>
+          <div style="margin-top:16px">
+            <button class="btn primary" onclick="saveSettings()">✓ 保存设置</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Inbound Modal -->
+<div class="modal-overlay hidden" id="inbound-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="inbound-modal-title">添加节点</div>
+      <button class="modal-close" onclick="closeModal('inbound-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-id">
+      <div class="form-row" style="margin-bottom:14px">
+        <div class="form-group">
+          <label>协议类型</label>
+          <select id="ib-type" onchange="onTypeChange()">
+            <option value="vless">VLESS</option>
+            <option value="vmess">VMess</option>
+            <option value="trojan">Trojan</option>
+            <option value="shadowsocks">Shadowsocks</option>
+            <option value="hysteria2">Hysteria2</option>
+            <option value="tuic">TUIC</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>节点标签 (tag)</label>
+          <input type="text" id="ib-tag" placeholder="例如: vless-reality-443">
+        </div>
+      </div>
+      <div class="form-row" style="margin-bottom:14px">
+        <div class="form-group">
+          <label>监听端口</label>
+          <input type="number" id="ib-port" placeholder="443" min="1" max="65535">
+        </div>
+        <div class="form-group" id="transport-group">
+          <label>传输方式</label>
+          <select id="ib-transport" onchange="onTransportChange()">
+            <option value="tcp">TCP</option>
+            <option value="ws">WebSocket</option>
+            <option value="grpc">gRPC</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- UUID/Password fields -->
+      <div id="uuid-section" class="form-row" style="margin-bottom:14px">
+        <div class="form-group">
+          <label>UUID</label>
+          <div class="input-group">
+            <input type="text" id="ib-uuid" class="code" placeholder="UUID">
+            <button class="btn sm" onclick="genUUID()">随机</button>
+          </div>
+        </div>
+        <div class="form-group" id="flow-group">
+          <label>Flow (VLESS)</label>
+          <select id="ib-flow">
+            <option value="">无 (普通TLS/WS)</option>
+            <option value="xtls-rprx-vision">xtls-rprx-vision (Reality)</option>
+          </select>
+        </div>
+      </div>
+      <div id="password-section" class="form-row hidden" style="margin-bottom:14px">
+        <div class="form-group">
+          <label id="password-label">密码</label>
+          <div class="input-group">
+            <input type="text" id="ib-password" class="code" placeholder="密码">
+            <button class="btn sm" onclick="genPassword()">随机</button>
+          </div>
+        </div>
+        <div class="form-group" id="method-group" style="display:none">
+          <label>加密方式</label>
+          <select id="ib-method">
+            <option value="aes-128-gcm">aes-128-gcm</option>
+            <option value="aes-256-gcm" selected>aes-256-gcm</option>
+            <option value="chacha20-ietf-poly1305">chacha20-ietf-poly1305</option>
+            <option value="2022-blake3-aes-128-gcm">2022-blake3-aes-128-gcm</option>
+            <option value="2022-blake3-aes-256-gcm">2022-blake3-aes-256-gcm</option>
+            <option value="2022-blake3-chacha20-poly1305">2022-blake3-chacha20-poly1305</option>
+          </select>
+        </div>
+      </div>
+      <!-- TUIC has both UUID and password -->
+      <div id="tuic-password-section" class="form-group hidden" style="margin-bottom:14px">
+        <label>密码 (TUIC)</label>
+        <div class="input-group">
+          <input type="text" id="ib-tuic-password" class="code" placeholder="密码">
+          <button class="btn sm" onclick="genTuicPassword()">随机</button>
+        </div>
+      </div>
+
+      <!-- WebSocket options -->
+      <div id="ws-options" class="hidden form-row" style="margin-bottom:14px">
+        <div class="form-group">
+          <label>WebSocket Path</label>
+          <input type="text" id="ib-ws-path" placeholder="/path">
+        </div>
+        <div class="form-group">
+          <label>WebSocket Host</label>
+          <input type="text" id="ib-ws-host" placeholder="cdn.example.com">
+        </div>
+      </div>
+
+      <!-- gRPC options -->
+      <div id="grpc-options" class="hidden form-group" style="margin-bottom:14px">
+        <label>gRPC Service Name</label>
+        <input type="text" id="ib-grpc-svc" placeholder="grpc-service">
+      </div>
+
+      <!-- Hysteria2 / TUIC extras -->
+      <div id="hy2-extras" class="hidden form-row" style="margin-bottom:14px">
+        <div class="form-group">
+          <label>上行带宽 (Mbps, 0=不限)</label>
+          <input type="number" id="ib-up-mbps" value="0" min="0">
+        </div>
+        <div class="form-group">
+          <label>下行带宽 (Mbps, 0=不限)</label>
+          <input type="number" id="ib-down-mbps" value="0" min="0">
+        </div>
+      </div>
+      <div id="tuic-cc" class="hidden form-group" style="margin-bottom:14px">
+        <label>拥塞控制算法</label>
+        <select id="ib-cc">
+          <option value="bbr">BBR</option>
+          <option value="cubic">Cubic</option>
+          <option value="new_reno">New Reno</option>
+        </select>
+      </div>
+
+      <!-- TLS Section -->
+      <div id="tls-section">
+        <div class="collapsible-header" onclick="toggleTLS(this)">
+          <div style="font-weight:700;font-size:13px;color:var(--text)">🔐 TLS 配置</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text2);font-size:12px" onclick="event.stopPropagation()">
+              <input type="checkbox" id="tls-enabled" onchange="onTLSToggle()"> 启用 TLS
+            </label>
+            <span class="chevron">▼</span>
+          </div>
+        </div>
+        <div class="tls-section collapsible-body hidden" id="tls-body">
+          <div class="form-row" style="margin-bottom:12px">
+            <div class="form-group">
+              <label>TLS 模式</label>
+              <select id="tls-mode" onchange="onTLSModeChange()">
+                <option value="self-signed">自动生成自签名证书</option>
+                <option value="custom-path">指定证书文件路径</option>
+                <option value="inline">粘贴证书内容</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Server Name (SNI)</label>
+              <div class="input-group">
+                <input type="text" id="tls-sni" placeholder="example.com">
+                <button class="btn sm" onclick="genFakeDomain()">随机域名</button>
+              </div>
+            </div>
+          </div>
+          <div id="tls-self-signed-hint" style="color:var(--text2);font-size:12px;padding:8px;background:var(--bg);border-radius:6px">
+            ✓ 将自动生成自签名证书。如需导出具体证书内容，请使用 "生成自签名证书" 工具。
+            <button class="btn sm" style="margin-top:6px" onclick="openGenCertModal()">⚙ 生成证书</button>
+          </div>
+          <div id="tls-path-section" class="hidden form-row">
+            <div class="form-group">
+              <label>证书文件路径</label>
+              <input type="text" id="tls-cert-path" class="code" placeholder="/etc/ssl/cert.pem">
+            </div>
+            <div class="form-group">
+              <label>私钥文件路径</label>
+              <input type="text" id="tls-key-path" class="code" placeholder="/etc/ssl/key.pem">
+            </div>
+          </div>
+          <div id="tls-inline-section" class="hidden">
+            <div class="form-group" style="margin-bottom:10px">
+              <label>证书内容 (PEM)</label>
+              <textarea id="tls-cert-pem" class="code" placeholder="-----BEGIN CERTIFICATE-----&#10;..."></textarea>
+            </div>
+            <div class="form-group">
+              <label>私钥内容 (PEM)</label>
+              <textarea id="tls-key-pem" class="code" placeholder="-----BEGIN EC PRIVATE KEY-----&#10;..."></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reality Section -->
+      <div id="reality-section" class="hidden" style="margin-top:12px">
+        <div class="collapsible-header" onclick="toggleReality(this)">
+          <div style="font-weight:700;font-size:13px;color:var(--text)">🌐 Reality 配置</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text2);font-size:12px" onclick="event.stopPropagation()">
+              <input type="checkbox" id="reality-enabled" onchange="onRealityToggle()"> 启用 Reality
+            </label>
+            <span class="chevron">▼</span>
+          </div>
+        </div>
+        <div class="reality-section collapsible-body hidden" id="reality-body">
+          <div class="form-row" style="margin-bottom:12px">
+            <div class="form-group">
+              <label>私钥 (Private Key)</label>
+              <input type="text" id="reality-priv" class="code" placeholder="Curve25519 私钥 base64url">
+            </div>
+            <div class="form-group">
+              <label>公钥 (Public Key)</label>
+              <input type="text" id="reality-pub" class="code" placeholder="自动由私钥推导">
+            </div>
+          </div>
+          <div style="margin-bottom:12px">
+            <button class="btn sm success" onclick="genRealityKeys()">⚙ 生成密钥对</button>
+          </div>
+          <div class="form-row" style="margin-bottom:12px">
+            <div class="form-group">
+              <label>Short ID</label>
+              <div class="input-group">
+                <input type="text" id="reality-shortid" class="code" placeholder="8位十六进制">
+                <button class="btn sm" onclick="genShortID()">随机</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>伪装域名 (Handshake Server)</label>
+              <div class="input-group">
+                <input type="text" id="reality-server" placeholder="www.microsoft.com">
+                <button class="btn sm" onclick="genDecoyDomain()">推荐</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>伪装端口</label>
+            <input type="number" id="reality-server-port" value="443" min="1" max="65535">
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('inbound-modal')">取消</button>
+      <button class="btn primary" onclick="saveInbound()">保存节点</button>
+    </div>
+  </div>
+</div>
+
+<!-- Download Modal -->
+<div class="modal-overlay hidden" id="download-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">⬇ 下载 sing-box</div>
+      <button class="modal-close" onclick="closeModal('download-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group" style="margin-bottom:16px">
+        <label>版本号 (留空则下载最新版)</label>
+        <input type="text" id="sb-version" placeholder="例如: v1.10.0，留空=最新">
+      </div>
+      <div id="download-progress" class="hidden">
+        <div class="progress-bar" style="margin-bottom:8px"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+        <div id="progress-log" class="log-viewer" style="min-height:80px;max-height:200px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('download-modal')">关闭</button>
+      <button class="btn primary" id="btn-start-download" onclick="startDownload()">开始下载</button>
+    </div>
+  </div>
+</div>
+
+<!-- Gen Cert Modal -->
+<div class="modal-overlay hidden" id="gen-cert-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🔐 生成自签名证书</div>
+      <button class="modal-close" onclick="closeModal('gen-cert-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group" style="margin-bottom:16px">
+        <label>域名 (CN)</label>
+        <div class="input-group">
+          <input type="text" id="gen-cert-host" placeholder="example.com">
+          <button class="btn sm" onclick="fillFakeDomainForCert()">随机</button>
+        </div>
+      </div>
+      <div id="gen-cert-result" class="hidden">
+        <div class="form-group" style="margin-bottom:12px">
+          <label>证书 (Certificate PEM)</label>
+          <textarea id="gen-cert-pem" class="code" rows="6" readonly></textarea>
+        </div>
+        <div class="form-group">
+          <label>私钥 (Key PEM)</label>
+          <textarea id="gen-key-pem" class="code" rows="6" readonly></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('gen-cert-modal')">关闭</button>
+      <button class="btn primary" onclick="doGenCert()">生成</button>
+      <button class="btn success" id="btn-use-cert" onclick="useCert()" style="display:none">使用此证书</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let token = localStorage.getItem('token') || '';
+let currentPage = 'dashboard';
+let inbounds = [];
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+window.onload = () => {
+  if (token) {
+    showApp();
+  }
+  document.getElementById('login-pass').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+};
+
+function showApp() {
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('app').style.opacity = '1';
+  loadSettings();
+  refreshStatus();
+  loadInbounds();
+}
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const username = document.getElementById('login-user').value;
+  const password = document.getElementById('login-pass').value;
+  const res = await api('/api/login', 'POST', {username, password}, true);
+  if (res.error) { toast('登录失败: ' + res.error, 'error'); return; }
+  token = res.token;
+  localStorage.setItem('token', token);
+  showApp();
+  toast('登录成功', 'success');
+}
+
+async function doLogout() {
+  await api('/api/logout', 'POST');
+  token = '';
+  localStorage.removeItem('token');
+  document.getElementById('login-page').style.display = 'flex';
+}
+
+// ─── Navigation ───────────────────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const page = document.getElementById('page-' + name);
+  if (page) page.classList.add('active');
+  const navItems = document.querySelectorAll('.nav-item');
+  navItems.forEach(n => { if (n.textContent.trim().includes(navTextMap[name]||'')) n.classList.add('active'); });
+  currentPage = name;
+  const titles = {dashboard:'仪表盘',inbounds:'节点列表',subscribe:'订阅导出',singbox:'sing-box 管理',backup:'备份恢复',settings:'设置'};
+  document.getElementById('topbar-title').textContent = titles[name] || name;
+  if (name === 'subscribe') loadSubscribePage();
+  if (name === 'singbox') loadSingBoxPage();
+  if (name === 'settings') loadSettingsPage();
+}
+
+const navTextMap = {dashboard:'仪表盘',inbounds:'节点',subscribe:'订阅',singbox:'sing-box',backup:'备份',settings:'设置'};
+
+// ─── API ──────────────────────────────────────────────────────────────────────
+async function api(url, method='GET', body=null, noAuth=false) {
+  const opts = { method, headers: {'Content-Type':'application/json'} };
+  if (!noAuth) opts.headers['X-Token'] = token;
+  if (body) opts.body = JSON.stringify(body);
+  try {
+    const res = await fetch(url, opts);
+    if (res.status === 401 && !noAuth) { doLogout(); return {error:'Unauthorized'}; }
+    return await res.json();
+  } catch(e) { return {error: e.message}; }
+}
+
+async function apiRaw(url, method='GET', body=null) {
+  const opts = { method, headers: {'Content-Type':'application/json','X-Token':token} };
+  if (body) opts.body = JSON.stringify(body);
+  return fetch(url, opts);
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+async function refreshStatus() {
+  const status = await api('/api/system/status');
+  if (status.error) return;
+  document.getElementById('stat-status').innerHTML = status.running
+    ? '<span class="badge running"><span class="dot green"></span>运行中</span>'
+    : '<span class="badge stopped"><span class="dot red"></span>已停止</span>';
+  document.getElementById('stat-version').textContent = status.version || '未知版本';
+  document.getElementById('stat-boot').innerHTML = status.systemd_enabled
+    ? '<span class="badge enabled">已启用</span>'
+    : '<span class="badge disabled">未启用</span>';
+  document.getElementById('stat-installed').textContent = status.installed ? '已安装' : '未安装';
+
+  // Update singbox page too
+  const detail = document.getElementById('sb-status-detail');
+  if (detail) {
+    detail.innerHTML = `
+      <div class="form-row">
+        <div><div class="section-title">安装路径</div><code class="tag">${status.bin_path}</code></div>
+        <div><div class="section-title">配置路径</div><code class="tag">${status.config_path}</code></div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+        ${status.installed ? `<span class="badge running">✓ 已安装</span>` : `<span class="badge stopped">✗ 未安装</span>`}
+        ${status.running ? `<span class="badge running"><span class="dot green"></span>服务运行中</span>` : `<span class="badge stopped"><span class="dot red"></span>服务已停止</span>`}
+        ${status.systemd_enabled ? `<span class="badge enabled">开机自启已启用</span>` : `<span class="badge disabled">开机自启未启用</span>`}
+      </div>
+      ${status.version ? `<div style="margin-top:10px;color:var(--text2);font-size:12px">版本: ${status.version}</div>` : ''}
+    `;
+  }
+}
+
+function updateTypeChart() {
+  const types = {};
+  inbounds.forEach(ib => { types[ib.type] = (types[ib.type]||0) + 1; });
+  const chart = document.getElementById('type-chart');
+  if (!inbounds.length) { chart.innerHTML = '<div style="color:var(--text2);font-size:12px">暂无节点</div>'; return; }
+  chart.innerHTML = Object.entries(types).map(([t,c]) =>
+    `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <span class="type-badge type-${t}">${t}</span>
+      <div style="flex:1;background:var(--border);border-radius:4px;height:6px">
+        <div style="width:${Math.round(c/inbounds.length*100)}%;background:var(--accent);height:100%;border-radius:4px"></div>
+      </div>
+      <span style="color:var(--text2);font-size:12px">${c}</span>
+    </div>`
+  ).join('');
+}
+
+async function loadLogs() {
+  const res = await api('/api/system/logs');
+  if (res.error) return;
+  const v1 = document.getElementById('log-viewer');
+  const v2 = document.getElementById('log-viewer2');
+  if (v1) { v1.textContent = res.logs || '暂无日志'; v1.scrollTop = v1.scrollHeight; }
+  if (v2) { v2.textContent = res.logs || '暂无日志'; v2.scrollTop = v2.scrollHeight; }
+}
+
+// ─── Inbounds ─────────────────────────────────────────────────────────────────
+async function loadInbounds() {
+  const data = await api('/api/inbounds');
+  if (data.error) return;
+  inbounds = data || [];
+  renderInboundTable();
+  document.getElementById('stat-nodes').textContent = inbounds.length;
+  updateTypeChart();
+}
+
+function renderInboundTable() {
+  const wrap = document.getElementById('inbound-table-wrap');
+  if (!inbounds.length) {
+    wrap.innerHTML = `<div class="empty-state"><div class="icon">⇄</div><h3>暂无节点</h3><p>点击"添加节点"开始配置</p></div>`;
+    return;
+  }
+  wrap.innerHTML = `<table>
+    <thead><tr>
+      <th>协议</th><th>标签</th><th>端口</th><th>传输</th><th>TLS</th><th>UUID/密码</th><th>操作</th>
+    </tr></thead>
+    <tbody>${inbounds.map(ib => `
+      <tr>
+        <td><span class="type-badge type-${ib.type}">${ib.type}</span></td>
+        <td style="font-family:var(--font)">${ib.tag}</td>
+        <td style="font-family:var(--font)">${ib.port}</td>
+        <td>${ib.transport||'tcp'}</td>
+        <td>${ib.reality?.enabled ? '<span class="badge enabled">Reality</span>' : ib.tls?.enabled ? '<span class="badge enabled">TLS</span>' : '<span class="badge disabled">无</span>'}</td>
+        <td style="font-family:var(--font);font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${ib.uuid||ib.password||''}">${shortSecret(ib)}</td>
+        <td>
+          <div style="display:flex;gap:6px">
+            <button class="btn sm" onclick="editInbound('${ib.id}')">编辑</button>
+            <button class="btn sm danger" onclick="deleteInbound('${ib.id}','${ib.tag}')">删除</button>
+          </div>
+        </td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function shortSecret(ib) {
+  const s = ib.uuid || ib.password || '';
+  if (!s) return '—';
+  return s.length > 20 ? s.substring(0,8)+'…'+s.substring(s.length-4) : s;
+}
+
+// ─── Add/Edit Modal ───────────────────────────────────────────────────────────
+function openAddModal() {
+  document.getElementById('inbound-modal-title').textContent = '添加节点';
+  document.getElementById('edit-id').value = '';
+  resetModal();
+  openModal('inbound-modal');
+}
+
+function editInbound(id) {
+  const ib = inbounds.find(x => x.id === id);
+  if (!ib) return;
+  document.getElementById('inbound-modal-title').textContent = '编辑节点';
+  document.getElementById('edit-id').value = id;
+  resetModal();
+  document.getElementById('ib-type').value = ib.type;
+  document.getElementById('ib-tag').value = ib.tag;
+  document.getElementById('ib-port').value = ib.port;
+  document.getElementById('ib-transport').value = ib.transport || 'tcp';
+  document.getElementById('ib-uuid').value = ib.uuid || '';
+  document.getElementById('ib-flow').value = ib.flow || '';
+  document.getElementById('ib-password').value = ib.password || '';
+  document.getElementById('ib-method').value = ib.method || 'aes-256-gcm';
+  document.getElementById('ib-ws-path').value = ib.ws_path || '';
+  document.getElementById('ib-ws-host').value = ib.ws_host || '';
+  document.getElementById('ib-grpc-svc').value = ib.grpc_svc || '';
+  document.getElementById('ib-up-mbps').value = ib.up_mbps || 0;
+  document.getElementById('ib-down-mbps').value = ib.down_mbps || 0;
+  document.getElementById('ib-cc').value = ib.cc || 'bbr';
+  document.getElementById('ib-tuic-password').value = ib.type === 'tuic' ? (ib.password||'') : '';
+  // TLS
+  if (ib.tls) {
+    document.getElementById('tls-enabled').checked = ib.tls.enabled;
+    document.getElementById('tls-mode').value = ib.tls.mode || 'self-signed';
+    document.getElementById('tls-sni').value = ib.tls.server_name || '';
+    document.getElementById('tls-cert-path').value = ib.tls.cert_path || '';
+    document.getElementById('tls-key-path').value = ib.tls.key_path || '';
+    document.getElementById('tls-cert-pem').value = ib.tls.cert_pem || '';
+    document.getElementById('tls-key-pem').value = ib.tls.key_pem || '';
+  }
+  // Reality
+  if (ib.reality) {
+    document.getElementById('reality-enabled').checked = ib.reality.enabled;
+    document.getElementById('reality-priv').value = ib.reality.private_key || '';
+    document.getElementById('reality-pub').value = ib.reality.public_key || '';
+    document.getElementById('reality-shortid').value = (ib.reality.short_id||[])[0] || '';
+    document.getElementById('reality-server').value = ib.reality.server_name || '';
+    document.getElementById('reality-server-port').value = ib.reality.server_port || 443;
+  }
+  onTypeChange();
+  onTransportChange();
+  onTLSToggle();
+  onTLSModeChange();
+  onRealityToggle();
+  openModal('inbound-modal');
+}
+
+function resetModal() {
+  document.getElementById('ib-type').value = 'vless';
+  document.getElementById('ib-tag').value = '';
+  document.getElementById('ib-port').value = '';
+  document.getElementById('ib-transport').value = 'tcp';
+  document.getElementById('ib-uuid').value = '';
+  document.getElementById('ib-flow').value = '';
+  document.getElementById('ib-password').value = '';
+  document.getElementById('ib-method').value = 'aes-256-gcm';
+  document.getElementById('ib-ws-path').value = '';
+  document.getElementById('ib-ws-host').value = '';
+  document.getElementById('ib-grpc-svc').value = '';
+  document.getElementById('ib-up-mbps').value = 0;
+  document.getElementById('ib-down-mbps').value = 0;
+  document.getElementById('ib-cc').value = 'bbr';
+  document.getElementById('ib-tuic-password').value = '';
+  document.getElementById('tls-enabled').checked = false;
+  document.getElementById('reality-enabled').checked = false;
+  document.getElementById('reality-priv').value = '';
+  document.getElementById('reality-pub').value = '';
+  document.getElementById('reality-shortid').value = '';
+  document.getElementById('reality-server').value = 'www.microsoft.com';
+  document.getElementById('reality-server-port').value = 443;
+  document.getElementById('tls-sni').value = '';
+  document.getElementById('tls-mode').value = 'self-signed';
+  document.getElementById('tls-cert-path').value = '';
+  document.getElementById('tls-key-path').value = '';
+  document.getElementById('tls-cert-pem').value = '';
+  document.getElementById('tls-key-pem').value = '';
+  onTypeChange(); onTransportChange(); onTLSToggle(); onTLSModeChange(); onRealityToggle();
+}
+
+function onTypeChange() {
+  const type = document.getElementById('ib-type').value;
+  const hasUUID = ['vless','vmess','tuic'].includes(type);
+  const hasPassword = ['trojan','shadowsocks','hysteria2','tuic'].includes(type);
+  const hasMethod = type === 'shadowsocks';
+  const hasFlow = type === 'vless';
+  const hasReality = type === 'vless';
+  const hasHy2 = type === 'hysteria2';
+  const hasTuicCC = type === 'tuic';
+  const hasTuicPass = type === 'tuic';
+
+  document.getElementById('uuid-section').classList.toggle('hidden', !hasUUID);
+  document.getElementById('password-section').classList.toggle('hidden', !(hasPassword && type !== 'tuic'));
+  document.getElementById('method-group').style.display = hasMethod ? '' : 'none';
+  document.getElementById('flow-group').style.display = hasFlow ? '' : 'none';
+  document.getElementById('reality-section').classList.toggle('hidden', !hasReality);
+  document.getElementById('hy2-extras').classList.toggle('hidden', !hasHy2);
+  document.getElementById('tuic-cc').classList.toggle('hidden', !hasTuicCC);
+  document.getElementById('tuic-password-section').classList.toggle('hidden', !hasTuicPass);
+  document.getElementById('password-label').textContent = type === 'hysteria2' ? '密码 (Hysteria2)' : type === 'trojan' ? '密码 (Trojan)' : '密码';
+
+  // Hysteria2 and TUIC require TLS
+  if (type === 'hysteria2' || type === 'tuic') {
+    document.getElementById('tls-enabled').checked = true;
+    onTLSToggle();
+  }
+  // Transport options
+  const noTransport = ['shadowsocks','hysteria2','tuic','naive'].includes(type);
+  document.getElementById('transport-group').style.visibility = noTransport ? 'hidden' : '';
+}
+
+function onTransportChange() {
+  const t = document.getElementById('ib-transport').value;
+  document.getElementById('ws-options').classList.toggle('hidden', t !== 'ws');
+  document.getElementById('grpc-options').classList.toggle('hidden', t !== 'grpc');
+}
+
+function onTLSToggle() {
+  const en = document.getElementById('tls-enabled').checked;
+  const body = document.getElementById('tls-body');
+  if (en) { body.classList.remove('hidden'); }
+  else { body.classList.add('hidden'); }
+}
+
+function toggleTLS(header) {
+  header.classList.toggle('open');
+  document.getElementById('tls-body').classList.toggle('hidden');
+}
+
+function toggleReality(header) {
+  header.classList.toggle('open');
+  document.getElementById('reality-body').classList.toggle('hidden');
+}
+
+function onTLSModeChange() {
+  const mode = document.getElementById('tls-mode').value;
+  document.getElementById('tls-self-signed-hint').classList.toggle('hidden', mode !== 'self-signed');
+  document.getElementById('tls-path-section').classList.toggle('hidden', mode !== 'custom-path');
+  document.getElementById('tls-inline-section').classList.toggle('hidden', mode !== 'inline');
+}
+
+function onRealityToggle() {
+  const en = document.getElementById('reality-enabled').checked;
+  const body = document.getElementById('reality-body');
+  if (en) { body.classList.remove('hidden'); }
+  else { body.classList.add('hidden'); }
+}
+
+async function saveInbound() {
+  const type = document.getElementById('ib-type').value;
+  const tlsEnabled = document.getElementById('tls-enabled').checked;
+  const realityEnabled = document.getElementById('reality-enabled').checked;
+
+  const ib = {
+    id: document.getElementById('edit-id').value,
+    type,
+    tag: document.getElementById('ib-tag').value.trim(),
+    port: parseInt(document.getElementById('ib-port').value),
+    uuid: document.getElementById('ib-uuid').value.trim(),
+    flow: document.getElementById('ib-flow').value,
+    password: type === 'tuic' ? document.getElementById('ib-tuic-password').value.trim() : document.getElementById('ib-password').value.trim(),
+    method: document.getElementById('ib-method').value,
+    transport: document.getElementById('ib-transport').value,
+    ws_path: document.getElementById('ib-ws-path').value.trim(),
+    ws_host: document.getElementById('ib-ws-host').value.trim(),
+    grpc_svc: document.getElementById('ib-grpc-svc').value.trim(),
+    alter_id: 0,
+    up_mbps: parseInt(document.getElementById('ib-up-mbps').value)||0,
+    down_mbps: parseInt(document.getElementById('ib-down-mbps').value)||0,
+    cc: document.getElementById('ib-cc').value,
+    tls: {
+      enabled: tlsEnabled,
+      mode: document.getElementById('tls-mode').value,
+      server_name: document.getElementById('tls-sni').value.trim(),
+      cert_path: document.getElementById('tls-cert-path').value.trim(),
+      key_path: document.getElementById('tls-key-path').value.trim(),
+      cert_pem: document.getElementById('tls-cert-pem').value.trim(),
+      key_pem: document.getElementById('tls-key-pem').value.trim(),
+    },
+    reality: {
+      enabled: realityEnabled,
+      private_key: document.getElementById('reality-priv').value.trim(),
+      public_key: document.getElementById('reality-pub').value.trim(),
+      short_id: [document.getElementById('reality-shortid').value.trim()].filter(Boolean),
+      server_name: document.getElementById('reality-server').value.trim(),
+      server_port: parseInt(document.getElementById('reality-server-port').value)||443,
+    }
+  };
+
+  if (!ib.tag) { toast('请输入节点标签', 'error'); return; }
+  if (!ib.port || ib.port < 1) { toast('请输入有效端口', 'error'); return; }
+
+  let res;
+  if (ib.id) {
+    res = await api('/api/inbounds/' + ib.id, 'PUT', ib);
+  } else {
+    delete ib.id;
+    res = await api('/api/inbounds', 'POST', ib);
+  }
+  if (res.error) { toast('保存失败: ' + res.error, 'error'); return; }
+  toast('节点已保存', 'success');
+  closeModal('inbound-modal');
+  loadInbounds();
+}
+
+async function deleteInbound(id, tag) {
+  if (!confirm(`确认删除节点 "${tag}"？`)) return;
+  const res = await api('/api/inbounds/' + id, 'DELETE');
+  if (res.error) { toast('删除失败: ' + res.error, 'error'); return; }
+  toast('节点已删除', 'success');
+  loadInbounds();
+}
+
+// ─── Generators ───────────────────────────────────────────────────────────────
+async function genUUID() {
+  const res = await api('/api/gen/uuid');
+  if (res.uuid) document.getElementById('ib-uuid').value = res.uuid;
+}
+async function genPassword() {
+  const res = await api('/api/gen/password');
+  if (res.password) document.getElementById('ib-password').value = res.password;
+}
+async function genTuicPassword() {
+  const res = await api('/api/gen/password');
+  if (res.password) document.getElementById('ib-tuic-password').value = res.password;
+}
+async function genRealityKeys() {
+  const res = await api('/api/gen/reality');
+  if (res.private_key) {
+    document.getElementById('reality-priv').value = res.private_key;
+    document.getElementById('reality-pub').value = res.public_key;
+    toast('Reality 密钥对已生成', 'success');
+  }
+}
+async function genShortID() {
+  const res = await api('/api/gen/shortid');
+  if (res.short_id) document.getElementById('reality-shortid').value = res.short_id;
+}
+
+const decoyDomains = [
+  'www.microsoft.com','www.apple.com','www.amazon.com','www.cloudflare.com',
+  'www.google.com','addons.mozilla.org','www.lovelive-anime.jp','www.samsung.com',
+  'www.nvidia.com','www.amd.com','www.intel.com','www.yahoo.com'
+];
+function genDecoyDomain() {
+  const d = decoyDomains[Math.floor(Math.random()*decoyDomains.length)];
+  document.getElementById('reality-server').value = d;
+}
+function genFakeDomain() {
+  const d = decoyDomains[Math.floor(Math.random()*decoyDomains.length)];
+  document.getElementById('tls-sni').value = d;
+}
+function fillFakeDomainForCert() {
+  const d = decoyDomains[Math.floor(Math.random()*decoyDomains.length)];
+  document.getElementById('gen-cert-host').value = d;
+}
+
+// ─── Gen Cert Modal ───────────────────────────────────────────────────────────
+function openGenCertModal() {
+  document.getElementById('gen-cert-result').classList.add('hidden');
+  document.getElementById('btn-use-cert').style.display = 'none';
+  openModal('gen-cert-modal');
+}
+async function doGenCert() {
+  const host = document.getElementById('gen-cert-host').value || 'localhost';
+  const res = await api('/api/gen/cert?host=' + encodeURIComponent(host));
+  if (res.error) { toast('生成失败: '+res.error,'error'); return; }
+  document.getElementById('gen-cert-pem').value = res.cert;
+  document.getElementById('gen-key-pem').value = res.key;
+  document.getElementById('gen-cert-result').classList.remove('hidden');
+  document.getElementById('btn-use-cert').style.display = '';
+}
+function useCert() {
+  document.getElementById('tls-mode').value = 'inline';
+  document.getElementById('tls-cert-pem').value = document.getElementById('gen-cert-pem').value;
+  document.getElementById('tls-key-pem').value = document.getElementById('gen-key-pem').value;
+  document.getElementById('tls-enabled').checked = true;
+  onTLSToggle(); onTLSModeChange();
+  closeModal('gen-cert-modal');
+  toast('证书已填入', 'success');
+}
+
+// ─── Subscribe Page ───────────────────────────────────────────────────────────
+async function loadSubscribePage() {
+  const res = await apiRaw('/api/export/singbox');
+  const json = await res.text();
+  document.getElementById('config-preview').textContent = json;
+  await loadLinks();
+}
+
+async function loadLinks() {
+  const res = await apiRaw('/api/export/subscribe');
+  const text = await res.text();
+  const links = text.trim().split('\n').filter(Boolean);
+  const container = document.getElementById('links-list');
+  if (!links.length) {
+    container.innerHTML = '<div style="color:var(--text2);font-size:13px">暂无节点链接，请先添加节点</div>';
+    return;
+  }
+  container.innerHTML = links.map((l,i) => `
+    <div class="link-box">
+      ${l}
+      <button class="btn sm copy-btn" onclick="copyText('${encodeURIComponent(l)}')">复制</button>
+    </div>
+  `).join('');
+}
+
+function copyText(encoded) {
+  navigator.clipboard.writeText(decodeURIComponent(encoded)).then(() => toast('已复制', 'success'));
+}
+function copyAllLinks() {
+  const links = Array.from(document.querySelectorAll('.link-box')).map(d => d.childNodes[0].textContent.trim()).join('\n');
+  navigator.clipboard.writeText(links).then(() => toast('已复制全部链接', 'success'));
+}
+async function downloadSubscribe() {
+  const res = await apiRaw('/api/export/subscribe');
+  const blob = await res.blob();
+  downloadBlob(blob, 'subscribe.txt');
+}
+async function downloadSingBoxConfig() {
+  const res = await apiRaw('/api/export/singbox');
+  const blob = await res.blob();
+  downloadBlob(blob, 'config.json');
+}
+async function applyConfig() {
+  const res = await api('/api/apply', 'POST');
+  if (res.error) { toast('失败: '+res.error,'error'); return; }
+  toast(res.message || '配置已应用', 'success');
+  refreshStatus();
+}
+
+// ─── System ───────────────────────────────────────────────────────────────────
+async function sysAction(action) {
+  const labels = {start:'启动',stop:'停止',restart:'重启',enable:'开机自启',disable:'取消自启',register:'注册 Systemd'};
+  const res = await api('/api/system/action', 'POST', {action});
+  if (res.error) { toast(`${labels[action]}失败: ${res.error}`, 'error'); return; }
+  toast(`${labels[action]}成功`, 'success');
+  setTimeout(refreshStatus, 1000);
+}
+
+function loadSingBoxPage() {
+  refreshStatus();
+}
+
+// ─── Download ─────────────────────────────────────────────────────────────────
+function openDownloadModal() {
+  document.getElementById('download-progress').classList.add('hidden');
+  document.getElementById('progress-log').textContent = '';
+  document.getElementById('progress-fill').style.width = '0%';
+  document.getElementById('btn-start-download').disabled = false;
+  openModal('download-modal');
+}
+
+async function startDownload() {
+  const version = document.getElementById('sb-version').value.trim();
+  document.getElementById('btn-start-download').disabled = true;
+  document.getElementById('download-progress').classList.remove('hidden');
+  document.getElementById('progress-log').textContent = '';
+
+  const res = await api('/api/system/download', 'POST', {version});
+  if (res.error) { toast('下载失败: '+res.error,'error'); return; }
+
+  const clientId = res.client_id;
+  const evtSource = new EventSource(`/api/system/progress?id=${clientId}`);
+  let pct = 0;
+  evtSource.onmessage = e => {
+    const msg = e.data;
+    const log = document.getElementById('progress-log');
+    log.textContent += msg + '\n';
+    log.scrollTop = log.scrollHeight;
+    pct = Math.min(pct + 20, 95);
+    document.getElementById('progress-fill').style.width = pct + '%';
+    if (msg === 'DONE') {
+      document.getElementById('progress-fill').style.width = '100%';
+      toast('sing-box 下载安装成功！', 'success');
+      evtSource.close();
+      refreshStatus();
+    } else if (msg.startsWith('ERROR:')) {
+      toast(msg, 'error');
+      evtSource.close();
+    }
+  };
+}
+
+// ─── Backup/Restore ───────────────────────────────────────────────────────────
+async function doBackup() {
+  const res = await apiRaw('/api/backup');
+  const blob = await res.blob();
+  const cd = res.headers.get('Content-Disposition') || '';
+  const m = cd.match(/filename="?([^"]+)"?/);
+  downloadBlob(blob, m ? m[1] : 'backup.zip');
+  toast('备份文件已下载', 'success');
+}
+
+async function doRestore(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch('/api/restore', {
+    method: 'POST',
+    headers: {'X-Token': token},
+    body: formData
+  });
+  const data = await res.json();
+  if (data.error) { toast('恢复失败: '+data.error,'error'); return; }
+  toast('配置已恢复', 'success');
+  loadInbounds();
+  input.value = '';
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+async function loadSettings() {
+  const res = await api('/api/settings');
+  if (res.username) {
+    document.getElementById('sidebar-username').textContent = res.username;
+    document.getElementById('sidebar-avatar').textContent = res.username[0].toUpperCase();
+  }
+}
+async function loadSettingsPage() {
+  const res = await api('/api/settings');
+  if (res.username) document.getElementById('new-username').value = res.username;
+}
+async function saveSettings() {
+  const u = document.getElementById('new-username').value.trim();
+  const p = document.getElementById('new-password').value;
+  const c = document.getElementById('confirm-password').value;
+  if (!u || !p) { toast('用户名和密码不能为空', 'error'); return; }
+  if (p !== c) { toast('两次密码不一致', 'error'); return; }
+  const res = await api('/api/settings', 'POST', {username:u, password:p});
+  if (res.error) { toast('保存失败: '+res.error,'error'); return; }
+  toast('设置已保存，请重新登录', 'success');
+  setTimeout(doLogout, 1500);
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+function toast(msg, type='info') {
+  const c = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  const icons = {success:'✓',error:'✕',info:'ℹ'};
+  el.innerHTML = `<span>${icons[type]||'ℹ'}</span><span>${msg}</span>`;
+  c.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.add('hidden');
+  });
+});
+
+// Enter key for login
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-overlay:not(.hidden)').forEach(m => m.classList.add('hidden'));
+  }
+});
+</script>
+</body>
+</html>
