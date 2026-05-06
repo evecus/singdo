@@ -27,7 +27,7 @@ CERT_DIR="/etc/sing-box/certs"
 # 随机端口
 gen_random_port() {
     while true; do
-        port=$(( ($(od -An -N2 -tu2 /dev/urandom | tr -d ' ') % 4001) + 1000 ))
+        port=$(( ($(od -An -N2 -tu2 /dev/urandom | tr -d ' ') % 30001) + 10000 ))
         if command -v ss >/dev/null 2>&1; then
             ss -lnp 2>/dev/null | grep -q ":${port} " || { echo "$port"; return; }
         else
