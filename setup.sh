@@ -167,7 +167,6 @@ install_singbox() {
 
 # ── 生成自签证书 ───────────────────────────────────────────────────────────────
 gen_certs() {
-    section "生成自签 TLS 证书"
     mkdir -p "$CERT_DIR"
 
     SNI=$(random_pick "$SNI_LIST")
