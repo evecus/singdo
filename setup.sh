@@ -17,7 +17,7 @@ error()   { printf "${RED}[ERROR]${NC} %s\n" "$*"; exit 1; }
 section() { printf "\n${BOLD}${CYAN}=== %s ===${NC}\n" "$*"; }
 
 # ── 常量 ─────────────────────────────────────────────────────────────────────
-SINGBOX_VERSION="1.12.24"
+SINGBOX_VERSION="1.13.11"
 SINGBOX_BIN="/usr/local/bin/sing-box"
 SINGBOX_CONF_DIR="/etc/sing-box"
 SINGBOX_CONF="${SINGBOX_CONF_DIR}/config.json"
@@ -144,8 +144,7 @@ install_singbox() {
     section "安装 sing-box v${SINGBOX_VERSION}"
 
     # 构造下载文件名
-    # 格式: sing-box-1.12.24-linux-amd64.tar.gz
-    ARCHIVE="sing-box-${SINGBOX_VERSION}-linux-${SB_ARCH}.tar.gz"
+    ARCHIVE="sing-box-${SINGBOX_VERSION}-linux-${SB_ARCH}-musl.tar.gz"
     DOWNLOAD_URL="https://github.com/SagerNet/sing-box/releases/download/v${SINGBOX_VERSION}/${ARCHIVE}"
 
     info "下载地址: ${DOWNLOAD_URL}"
@@ -172,7 +171,6 @@ gen_certs() {
     mkdir -p "$CERT_DIR"
 
     SNI=$(random_pick "$SNI_LIST")
-    info "使用 SNI: ${SNI}"
 
     openssl req -x509 -newkey ec \
         -pkeyopt ec_paramgen_curve:P-256 \
@@ -184,7 +182,6 @@ gen_certs() {
         2>/dev/null
 
     chmod 600 "${CERT_DIR}/private.key"
-    info "证书生成完毕 (有效期 10 年)"
     echo "$SNI"   # 返回 SNI 供调用者使用
 }
 
